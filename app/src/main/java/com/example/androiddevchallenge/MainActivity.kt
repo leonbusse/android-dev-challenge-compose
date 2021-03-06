@@ -17,45 +17,110 @@ package com.example.androiddevchallenge
 
 import android.os.Bundle
 import androidx.activity.compose.setContent
+import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Surface
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.livedata.observeAsState
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.LiveData
+import androidx.lifecycle.MutableLiveData
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.example.androiddevchallenge.ui.theme.MyTheme
+import com.example.androiddevchallenge.ui.theme.typography
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
-class MainActivity : AppCompatActivity() {
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        setContent {
-            MyTheme {
-                MyApp()
+sealed class CountDownState {
+    object Setup : CountDownState()
+    class Running(val current: Int) : CountDownState()
+    object Finished : CountDownState()
+}
+
+class CountDownViewModel : ViewModel() {
+    private var _countDownState = MutableLiveData<CountDownState>(CountDownState.Setup)
+    val countDownState: LiveData<CountDownState> = _countDownState
+
+    fun onStart(targetCount: Int) {
+        _countDownState.value = CountDownState.Running(targetCount)
+        viewModelScope.launch(Dispatchers.Main) {
+            while (_countDownState.value is CountDownState.Running) {
+                delay(1000)
+                updateCounter()
+            }
+        }
+    }
+
+    private fun updateCounter() {
+        _countDownState.value.let { previous ->
+            _countDownState.value = when (previous) {
+                is CountDownState.Running -> when (previous.current) {
+                    0 -> CountDownState.Finished
+                    else -> CountDownState.Running(previous.current - 1)
+                }
+                is CountDownState.Finished,
+                is CountDownState.Setup, null -> CountDownState.Finished
             }
         }
     }
 }
 
-// Start building your app here!
+
+class MainActivity : AppCompatActivity() {
+    private val viewModel by viewModels<CountDownViewModel>()
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContent {
+            MyTheme {
+                MyApp(viewModel)
+            }
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        viewModel.onStart(10)
+
+    }
+}
+
 @Composable
-fun MyApp() {
+fun MyApp(viewModel: CountDownViewModel) {
+    val state: CountDownState by viewModel.countDownState
+        .observeAsState(CountDownState.Setup)
+
     Surface(color = MaterialTheme.colors.background) {
-        Text(text = "Ready... Set... GO!")
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            state.let {
+                when (it) {
+                    is CountDownState.Running -> CountDown(it.current)
+                    else -> Text("Finished!", style = typography.body1)
+                }
+            }
+
+        }
     }
 }
 
-@Preview("Light Theme", widthDp = 360, heightDp = 640)
 @Composable
-fun LightPreview() {
-    MyTheme {
-        MyApp()
-    }
-}
-
-@Preview("Dark Theme", widthDp = 360, heightDp = 640)
-@Composable
-fun DarkPreview() {
-    MyTheme(darkTheme = true) {
-        MyApp()
-    }
+fun CountDown(count: Int) {
+    Text(count.toString(), style = typography.h1)
 }
