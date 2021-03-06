@@ -20,20 +20,17 @@ import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.animation.*
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Surface
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
@@ -44,7 +41,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import java.lang.Math.abs
 
 sealed class CountDownState {
     abstract val key: String
@@ -53,7 +49,7 @@ sealed class CountDownState {
         override val key = "Setup"
     }
 
-    class Running(val current: Int) : CountDownState() {
+    data class Running(val current: Int) : CountDownState() {
         override val key = "Running{$current}"
     }
 
@@ -124,74 +120,34 @@ fun MyApp(viewModel: CountDownViewModel) {
         .observeAsState(CountDownState.Setup)
     val initialCount: Int by viewModel.initialCount
         .observeAsState(0)
-    CountDown(state, initialCount)
+    if (state != CountDownState.Setup) {
+        CountDown(state, initialCount)
+    }
 }
 
 @ExperimentalAnimationApi
 @Composable
 fun CountDown(state: CountDownState, initialCount: Int) {
     Surface(color = MaterialTheme.colors.background) {
-        LazyColumn(Modifier.fillMaxSize()) {
-            state.next(initialCount).let { st ->
-                item(st?.key) {
-                    if (st == null) {
-                        Box(
-                            Modifier
-                                .height(120.dp)
-                                .fillMaxWidth()
-                                .background(Color.Red)
-                        )
-                    } else {
-                        Center(
-                            Modifier
-                                .height(120.dp)
-                                .background(Color.Red)
-                        ) {
-                            CountDownElementAnimation(visible = false) {
-                                CountDownElement(st)
-                            }
-                        }
+        Box(Modifier.fillMaxSize()) {
+            for (i in 0..initialCount + 2) {
+                key(i) {
+                    val st = when (val index = i - 1) {
+                        initialCount + 1 -> CountDownState.Setup
+                        -1 -> CountDownState.Finished
+                        -2, initialCount + 2 -> null
+                        else -> CountDownState.Running(index)
                     }
-                }
-            }
 
-
-            item(state.key) {
-                Center(
-                    Modifier
-                        .height(120.dp)
-                        .background(Color.Red)
-                ) {
-                    CountDownElementAnimation(visible = true) {
-                        CountDownElement(state)
-                    }
-                }
-            }
-
-
-            state.previous(initialCount).let { st ->
-                item(st?.key) {
-                    if (st == null) {
-                        Box(
-                            Modifier
-                                .height(120.dp)
-                                .fillMaxWidth()
-                                .background(Color.Red)
-                        )
-                    } else {
-                        Center(
-                            Modifier
-                                .height(120.dp)
-                                .background(Color.Red)
-                        ) {
-                            CountDownElementAnimation(visible = false) {
-                                CountDownElement(st)
-                            }
+                    if (st != null) {
+                        CountDownElementAnimation(visible = st == state) {
+                            Center { CountDownElement(st) }
                         }
                     }
                 }
             }
         }
+
     }
 }
 
@@ -233,16 +189,18 @@ fun CountDownElementAnimation(
     AnimatedVisibility(
         visible = visible,
         initiallyVisible = false,
-        enter = slideInVertically(initialOffsetY = { -it }) + fadeIn(),
-        exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
+        enter = slideInVertically(initialOffsetY = { -it / 3 }) + fadeIn(),
+        exit = slideOutVertically(targetOffsetY = { it / 3 }) + fadeOut(),
     ) {
         content()
     }
 }
 
 @Composable
-fun Center(modifier: Modifier, content: @Composable ColumnScope.() -> Unit) = Column(
-    modifier = modifier.fillMaxSize(),
+fun Center(
+    content: @Composable ColumnScope.() -> Unit
+) = Column(
+    modifier = Modifier.fillMaxSize(),
     verticalArrangement = Arrangement.Center,
     horizontalAlignment = Alignment.CenterHorizontally,
     content = content
