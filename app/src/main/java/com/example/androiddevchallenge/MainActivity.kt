@@ -47,9 +47,19 @@ import kotlinx.coroutines.launch
 import java.lang.Math.abs
 
 sealed class CountDownState {
-    object Setup : CountDownState()
-    class Running(val current: Int) : CountDownState()
-    object Finished : CountDownState()
+    abstract val key: String
+
+    object Setup : CountDownState() {
+        override val key = "Setup"
+    }
+
+    class Running(val current: Int) : CountDownState() {
+        override val key = "Running{$current}"
+    }
+
+    object Finished : CountDownState() {
+        override val key = "Finished"
+    }
 }
 
 class CountDownViewModel : ViewModel() {
@@ -122,27 +132,89 @@ fun MyApp(viewModel: CountDownViewModel) {
 fun CountDown(state: CountDownState, initialCount: Int) {
     Surface(color = MaterialTheme.colors.background) {
         LazyColumn(Modifier.fillMaxSize()) {
-            item {
-                val height = if (state is CountDownState.Finished) 120.dp else 0.dp
-                Center(Modifier.height(height).background(Color.Red)) {
-                    CountDownElementAnimation(visible = state is CountDownState.Finished) {
-                        CountDownElement(CountDownState.Finished)
+            state.next(initialCount).let { st ->
+                item(st?.key) {
+                    if (st == null) {
+                        Box(
+                            Modifier
+                                .height(120.dp)
+                                .fillMaxWidth()
+                                .background(Color.Red)
+                        )
+                    } else {
+                        Center(
+                            Modifier
+                                .height(120.dp)
+                                .background(Color.Red)
+                        ) {
+                            CountDownElementAnimation(visible = false) {
+                                CountDownElement(st)
+                            }
+                        }
                     }
                 }
             }
-            items(initialCount + 1) { index ->
-                val height =
-                    if (state is CountDownState.Running && abs(state.current - index) < 2) 120.dp
-                    else 0.dp
-                Center(Modifier.height(height).background(Color.Red)) {
-                    CountDownElementAnimation(visible = (state as? CountDownState.Running)?.current == index) {
-                        CountDownElement(CountDownState.Running(index))
+
+
+            item(state.key) {
+                Center(
+                    Modifier
+                        .height(120.dp)
+                        .background(Color.Red)
+                ) {
+                    CountDownElementAnimation(visible = true) {
+                        CountDownElement(state)
+                    }
+                }
+            }
+
+
+            state.previous(initialCount).let { st ->
+                item(st?.key) {
+                    if (st == null) {
+                        Box(
+                            Modifier
+                                .height(120.dp)
+                                .fillMaxWidth()
+                                .background(Color.Red)
+                        )
+                    } else {
+                        Center(
+                            Modifier
+                                .height(120.dp)
+                                .background(Color.Red)
+                        ) {
+                            CountDownElementAnimation(visible = false) {
+                                CountDownElement(st)
+                            }
+                        }
                     }
                 }
             }
         }
     }
 }
+
+fun CountDownState.next(initialCount: Int): CountDownState? =
+    when {
+        this is CountDownState.Setup -> CountDownState.Running(initialCount)
+        this is CountDownState.Running
+                && this.current != 0 -> CountDownState.Running(this.current - 1)
+        this is CountDownState.Running
+                && this.current == 0 -> CountDownState.Finished
+        else -> null
+    }
+
+fun CountDownState.previous(initialCount: Int): CountDownState? =
+    when {
+        this is CountDownState.Finished -> CountDownState.Running(0)
+        this is CountDownState.Running
+                && this.current != initialCount -> CountDownState.Running(this.current + 1)
+        this is CountDownState.Running
+                && this.current == initialCount -> CountDownState.Setup
+        else -> null
+    }
+
 
 @ExperimentalAnimationApi
 @Preview
