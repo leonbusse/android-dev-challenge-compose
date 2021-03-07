@@ -20,16 +20,26 @@ import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.animation.ExperimentalAnimationApi
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
 import androidx.compose.material.Button
 import androidx.compose.material.ButtonDefaults
 import androidx.compose.material.ButtonDefaults.buttonColors
 import androidx.compose.material.Surface
 import androidx.compose.material.Text
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.livedata.observeAsState
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -42,7 +52,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.androiddevchallenge.ui.theme.MyTheme
 import com.example.androiddevchallenge.ui.theme.typography
-
 
 @ExperimentalAnimationApi
 class MainActivity : AppCompatActivity() {
@@ -78,7 +87,6 @@ fun MyApp(viewModel: CountDownViewModel) {
     }
 }
 
-
 @Composable
 fun CountDownButton(onClick: () -> Unit, content: @Composable RowScope.() -> Unit) {
     Button(
@@ -103,9 +111,11 @@ fun CountDownSetup(onDone: (Int) -> Unit) {
             Text(text = "+", fontSize = 60.sp)
         }
         CountDownElement(state = CountDownState.Running(initialCount.value))
-        CountDownButton(onClick = {
-            initialCount.value = kotlin.math.max(0, initialCount.value - 1)
-        }) {
+        CountDownButton(
+            onClick = {
+                initialCount.value = kotlin.math.max(0, initialCount.value - 1)
+            }
+        ) {
             Text(text = "-", fontSize = 60.sp)
         }
         CountDownButton(onClick = { onDone(initialCount.value) }) {
