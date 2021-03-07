@@ -29,6 +29,7 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.LiveData
@@ -138,8 +139,8 @@ fun CountDown(state: CountDownState, initialCount: Int) {
                         else -> CountDownState.Running(index)
                     }
 
-                    CountDownElementAnimation(visible = st == state) {
-                        Center { CountDownElement(st) }
+                    CountDownElementAnimation(visible = st == state) { color: Color ->
+                        Center { CountDownElement(st, color) }
                     }
                 }
             }
@@ -181,7 +182,7 @@ fun DefaultPreview() {
 @Composable
 fun CountDownElementAnimation(
     visible: Boolean,
-    content: @Composable () -> Unit
+    content: @Composable (color: Color) -> Unit
 ) {
     val entering = visible
 
@@ -210,16 +211,28 @@ fun CountDownElementAnimation(
     val scale = if (entering) animationTweenProgress / 2 + .5f
     else animationTweenProgress
 
-    Box(
-        Modifier
-            .fillMaxSize()
-            .graphicsLayer(
-                alpha = alpha,
-                scaleX = scale,
-                scaleY = scale,
-                translationY = offsetY
-            )
-    ) { content() }
+    Box {
+        Box(
+            Modifier
+                .fillMaxSize()
+                .graphicsLayer(
+                    alpha = alpha,
+                    scaleX = scale,
+                    scaleY = scale,
+                    translationY = offsetY
+                )
+        ) { content(Color.Black) }
+
+        Box(
+            Modifier
+                .fillMaxSize()
+                .graphicsLayer(
+                    alpha = animationTweenProgress,
+                    scaleX = animationTweenProgress * 4f,
+                    scaleY = animationTweenProgress * 4f,
+                )
+        ) { content(Color(0f, 0f, 0f, .1f)) }
+    }
 }
 
 @Composable
@@ -241,9 +254,10 @@ fun CenterHorizontally(content: @Composable ColumnScope.() -> Unit) = Column(
 )
 
 @Composable
-fun CountDownElement(state: CountDownState) {
-    when (state) {
-        is CountDownState.Running -> Text(state.current.toString(), style = typography.h1)
-        else -> Text("Finished!", style = typography.h1)
+fun CountDownElement(state: CountDownState, color: Color = Color.Black) {
+    val content = when (state) {
+        is CountDownState.Running -> state.current.toString()
+        else -> "Finished!"
     }
+    Text(content, style = typography.h1, color = color)
 }
