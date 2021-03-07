@@ -20,16 +20,16 @@ import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.animation.*
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Surface
 import androidx.compose.material.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.key
+import androidx.compose.runtime.*
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
@@ -130,19 +130,16 @@ fun MyApp(viewModel: CountDownViewModel) {
 fun CountDown(state: CountDownState, initialCount: Int) {
     Surface(color = MaterialTheme.colors.background) {
         Box(Modifier.fillMaxSize()) {
-            for (i in 0..initialCount + 2) {
-                key(i) {
-                    val st = when (val index = i - 1) {
+            for (index in -1..initialCount + 1) {
+                key(index) {
+                    val st = when (index) {
                         initialCount + 1 -> CountDownState.Setup
                         -1 -> CountDownState.Finished
-                        -2, initialCount + 2 -> null
                         else -> CountDownState.Running(index)
                     }
 
-                    if (st != null) {
-                        CountDownElementAnimation(visible = st == state) {
-                            Center { CountDownElement(st) }
-                        }
+                    CountDownElementAnimation(visible = st == state) {
+                        Center { CountDownElement(st) }
                     }
                 }
             }
@@ -186,14 +183,43 @@ fun CountDownElementAnimation(
     visible: Boolean,
     content: @Composable () -> Unit
 ) {
-    AnimatedVisibility(
-        visible = visible,
-        initiallyVisible = false,
-        enter = slideInVertically(initialOffsetY = { -it / 3 }) + fadeIn(),
-        exit = slideOutVertically(targetOffsetY = { it / 3 }) + fadeOut(),
-    ) {
-        content()
-    }
+    val entering = visible
+
+    val animationTweenProgress: Float by animateFloatAsState(
+        if (entering) 1f else 0f,
+        animationSpec = tween(durationMillis = 500)
+    )
+    val enterOffsetY: Float by animateFloatAsState(
+        if (entering) 0f else -1600f,
+        animationSpec = spring(0.3f, 500f)
+    )
+
+    val exitOffsetY: Float by animateFloatAsState(
+        if (entering) 0f else 2000f,
+        animationSpec = tween(
+            durationMillis = 500,
+            easing = LinearOutSlowInEasing
+        )
+    )
+
+    val offsetY = if (entering) enterOffsetY else exitOffsetY
+
+    val alpha = if (entering) 1f
+    else animationTweenProgress
+
+    val scale = if (entering) animationTweenProgress / 2 + .5f
+    else animationTweenProgress
+
+    Box(
+        Modifier
+            .fillMaxSize()
+            .graphicsLayer(
+                alpha = alpha,
+                scaleX = scale,
+                scaleY = scale,
+                translationY = offsetY
+            )
+    ) { content() }
 }
 
 @Composable
