@@ -30,6 +30,10 @@ class CountDownViewModel : ViewModel() {
         }
     }
 
+    fun onRestart() {
+        _countDownState.value = CountDownState.Setup
+    }
+
     private fun updateCounter() {
         _countDownState.value.let { previous ->
             _countDownState.value = when (previous) {

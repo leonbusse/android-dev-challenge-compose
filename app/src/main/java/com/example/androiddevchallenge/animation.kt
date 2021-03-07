@@ -1,10 +1,7 @@
 package com.example.androiddevchallenge
 
 import androidx.compose.animation.ExperimentalAnimationApi
-import androidx.compose.animation.core.LinearOutSlowInEasing
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -20,7 +17,7 @@ val backgroundColors = listOf(
 
 @Composable
 fun animateBackgroundColor(state: Any): State<Color> {
-    val targetBackgroundColor = remember { mutableStateOf(backgroundColors.first()) }
+    val targetBackgroundColor = remember { mutableStateOf(Color.White) }
     LaunchedEffect(state) {
         targetBackgroundColor.value =
             backgroundColors[(Math.random() * backgroundColors.size).toInt()]
@@ -37,6 +34,7 @@ fun animateBackgroundColor(state: Any): State<Color> {
 @Composable
 fun CountDownElementAnimation(
     visible: Boolean,
+    infinite: Boolean,
     content: @Composable (color: Color) -> Unit
 ) {
 
@@ -47,7 +45,7 @@ fun CountDownElementAnimation(
 
     Box {
         CountDownElementForegroundAnimation(visible, animationTweenProgress, content)
-        CountDownElementBackgroundAnimation(visible, animationTweenProgress, content)
+        CountDownElementBackgroundAnimation(visible, animationTweenProgress, infinite, content)
     }
 }
 
@@ -95,16 +93,54 @@ fun CountDownElementForegroundAnimation(
 fun CountDownElementBackgroundAnimation(
     entering: Boolean,
     animationTweenProgress: Float,
+    infinite: Boolean,
     content: @Composable (color: Color) -> Unit
 ) {
+    val rotationZ = if (infinite) {
+        animateFloatAsState(
+            targetValue = 0f,
+            animationSpec = repeatable(
+                100,
+                keyframes {
+                    delayMillis = 0
+                    durationMillis = 4_000
+                    0f at 0 with FastOutSlowInEasing
+                    360f at 4_000 with FastOutSlowInEasing
+                },
+                repeatMode = RepeatMode.Restart
+            ),
+        ).value
+    } else {
+        if (entering) (animationTweenProgress - 1f) * 90f
+        else (1f - animationTweenProgress) * 90f
+    }
+
+    val scale = if (infinite) {
+        animateFloatAsState(
+            targetValue = 0f,
+            animationSpec = repeatable(
+                100,
+                keyframes {
+                    delayMillis = 0
+                    durationMillis = 4_000
+                    2f at 0 with FastOutSlowInEasing
+                    4f at 2_000 with FastOutSlowInEasing
+                    2f at 4_000 with FastOutSlowInEasing
+                },
+                repeatMode = RepeatMode.Restart,
+            ),
+        ).value
+    } else {
+        animationTweenProgress * 4f
+    }
+
     Box(
         Modifier
             .graphicsLayer(
                 alpha = animationTweenProgress,
-                scaleX = animationTweenProgress * 4f,
-                scaleY = animationTweenProgress * 4f,
-                rotationZ = if (entering) (animationTweenProgress - 1f) * 90f
-                else (1f - animationTweenProgress) * 90f
+                scaleX = scale,
+                scaleY = scale,
+                rotationZ = rotationZ
             )
     ) { content(Color(0f, 0f, 0f, .1f)) }
 }

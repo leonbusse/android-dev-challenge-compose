@@ -19,18 +19,32 @@ import android.os.Bundle
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.ExperimentalAnimationApi
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.material.Button
+import androidx.compose.material.ButtonDefaults
+import androidx.compose.material.ButtonDefaults.buttonColors
 import androidx.compose.material.Surface
 import androidx.compose.material.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.key
+import androidx.compose.runtime.*
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.androiddevchallenge.ui.theme.MyTheme
 import com.example.androiddevchallenge.ui.theme.typography
 
@@ -50,8 +64,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        viewModel.onStart(10)
-
+//        viewModel.onStart(10)
     }
 }
 
@@ -63,33 +76,97 @@ fun MyApp(viewModel: CountDownViewModel) {
     val initialCount: Int by viewModel.initialCount
         .observeAsState(0)
 
-    if (state != CountDownState.Setup) {
-        CountDown(state, initialCount)
+    if (state == CountDownState.Setup) {
+        CountDownSetup { viewModel.onStart(it) }
+    } else {
+        CountDown(state, initialCount, viewModel::onRestart)
+    }
+}
+
+
+@Composable
+fun CountDownButton(onClick: () -> Unit, content: @Composable RowScope.() -> Unit) {
+    Button(
+        colors = buttonColors(backgroundColor = Color.Transparent),
+        elevation = ButtonDefaults.elevation(0.dp, 0.dp, 0.dp),
+        onClick = onClick,
+        content = content
+    )
+}
+
+@ExperimentalAnimationApi
+@Composable
+fun CountDownSetup(onDone: (Int) -> Unit) {
+    val initialCount = remember { mutableStateOf(3) }
+    Center {
+        Box(modifier = Modifier.alpha(0f)) {
+            CountDownButton({}) {
+                Text(text = "Go!", fontSize = 60.sp)
+            }
+        }
+        CountDownButton(onClick = { initialCount.value++ }) {
+            Text(text = "+", fontSize = 60.sp)
+        }
+        CountDownElement(state = CountDownState.Running(initialCount.value))
+        CountDownButton(onClick = { initialCount.value-- }) {
+            Text(text = "-", fontSize = 60.sp)
+        }
+        CountDownButton(onClick = { onDone(initialCount.value) }) {
+            Text(text = "Go!", fontSize = 60.sp)
+        }
     }
 }
 
 @ExperimentalAnimationApi
 @Composable
-fun CountDown(state: CountDownState, initialCount: Int) {
+fun CountDown(state: CountDownState, initialCount: Int, onRestart: () -> Unit = {}) {
     val backgroundColor = animateBackgroundColor(state)
 
     Surface(color = backgroundColor.value) {
-        Box(Modifier.fillMaxSize()) {
-            for (index in -1..initialCount + 1) {
-                key(index) {
-                    val st = when (index) {
-                        initialCount + 1 -> CountDownState.Setup
-                        -1 -> CountDownState.Finished
-                        else -> CountDownState.Running(index)
-                    }
+        Center {
+            Box(Modifier.size(0.dp, 200.dp))
+            Box(contentAlignment = Alignment.Center) {
+                for (index in -1..initialCount + 1) {
+                    key(index) {
+                        val st = when (index) {
+                            initialCount + 1 -> CountDownState.Setup
+                            -1 -> CountDownState.Finished
+                            else -> CountDownState.Running(index)
+                        }
 
-                    CountDownElementAnimation(visible = st == state) { color: Color ->
-                        Center { CountDownElement(st, color) }
+                        CountDownElementAnimation(
+                            visible = st == state,
+                            infinite = st == CountDownState.Finished
+                        ) { color: Color ->
+                            CountDownElement(st, color)
+                        }
                     }
                 }
             }
-        }
 
+            val restartAlpha =
+                animateFloatAsState(
+                    targetValue = if (state is CountDownState.Finished) 1f else 0f,
+                    animationSpec = tween(delayMillis = 1500)
+                ).value
+
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .height(200.dp)
+                    .graphicsLayer(alpha = restartAlpha),
+                contentAlignment = Alignment.Center
+            ) {
+                CountDownButton(onRestart) {
+                    Text(
+                        "Restart",
+                        fontSize = 42.sp,
+                        fontStyle = FontStyle.Italic,
+                        textDecoration = TextDecoration.Underline
+                    )
+                }
+            }
+        }
     }
 }
 
@@ -109,12 +186,12 @@ fun CountDownElement(state: CountDownState, color: Color = Color.Black) {
         is CountDownState.Running -> Text(
             state.current.toString(),
             style = typography.h1,
-            color = color
+            color = color,
         )
         else -> Text(
             "Finished!",
             style = typography.h2,
-            color = color
+            color = color,
         )
     }
 }
