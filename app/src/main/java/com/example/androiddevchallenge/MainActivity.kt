@@ -19,10 +19,12 @@ import android.os.Bundle
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
-import androidx.compose.animation.*
-import androidx.compose.animation.core.*
+import androidx.compose.animation.ExperimentalAnimationApi
+import androidx.compose.animation.core.LinearOutSlowInEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.*
-import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Surface
 import androidx.compose.material.Text
 import androidx.compose.runtime.*
@@ -32,66 +34,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.lifecycle.LiveData
-import androidx.lifecycle.MutableLiveData
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
 import com.example.androiddevchallenge.ui.theme.MyTheme
 import com.example.androiddevchallenge.ui.theme.typography
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
-
-sealed class CountDownState {
-    abstract val key: String
-
-    object Setup : CountDownState() {
-        override val key = "Setup"
-    }
-
-    data class Running(val current: Int) : CountDownState() {
-        override val key = "Running{$current}"
-    }
-
-    object Finished : CountDownState() {
-        override val key = "Finished"
-    }
-}
-
-class CountDownViewModel : ViewModel() {
-    private var countDownJob: Job? = null
-
-    private var _countDownState = MutableLiveData<CountDownState>(CountDownState.Setup)
-    val countDownState: LiveData<CountDownState> = _countDownState
-
-    private var _initialCount = MutableLiveData(0)
-    val initialCount: LiveData<Int> = _initialCount
-
-    fun onStart(initial: Int) {
-        countDownJob?.cancel()
-        _initialCount.value = initial
-        _countDownState.value = CountDownState.Running(initial + 1)
-        countDownJob = viewModelScope.launch(Dispatchers.Main) {
-            while (_countDownState.value is CountDownState.Running) {
-                delay(1000)
-                updateCounter()
-            }
-        }
-    }
-
-    private fun updateCounter() {
-        _countDownState.value.let { previous ->
-            _countDownState.value = when (previous) {
-                is CountDownState.Running -> when (previous.current) {
-                    0 -> CountDownState.Finished
-                    else -> CountDownState.Running(previous.current - 1)
-                }
-                else -> CountDownState.Finished
-            }
-        }
-    }
-}
+import java.lang.Math.random
 
 
 @ExperimentalAnimationApi
@@ -121,15 +66,38 @@ fun MyApp(viewModel: CountDownViewModel) {
         .observeAsState(CountDownState.Setup)
     val initialCount: Int by viewModel.initialCount
         .observeAsState(0)
+
     if (state != CountDownState.Setup) {
         CountDown(state, initialCount)
+    }
+}
+
+val backgroundColors = listOf(
+    Color.Red, Color.Green,
+    Color.Cyan, Color.Magenta,
+    Color.Yellow, Color.Blue
+)
+
+@Composable
+fun animateBackgroundColor(state: Any): State<Color> {
+    val targetBackgroundColor = remember { mutableStateOf(Color.White) }
+    LaunchedEffect(state) {
+        targetBackgroundColor.value = backgroundColors[(random() * backgroundColors.size).toInt()]
+    }
+    val backgroundColorRed by animateFloatAsState(targetValue = targetBackgroundColor.value.red)
+    val backgroundColorGreen by animateFloatAsState(targetValue = targetBackgroundColor.value.green)
+    val backgroundColorBlue by animateFloatAsState(targetValue = targetBackgroundColor.value.blue)
+    return derivedStateOf {
+        Color(backgroundColorRed, backgroundColorGreen, backgroundColorBlue)
     }
 }
 
 @ExperimentalAnimationApi
 @Composable
 fun CountDown(state: CountDownState, initialCount: Int) {
-    Surface(color = MaterialTheme.colors.background) {
+    val backgroundColor = animateBackgroundColor(state)
+
+    Surface(color = backgroundColor.value) {
         Box(Modifier.fillMaxSize()) {
             for (index in -1..initialCount + 1) {
                 key(index) {
@@ -148,26 +116,6 @@ fun CountDown(state: CountDownState, initialCount: Int) {
 
     }
 }
-
-fun CountDownState.next(initialCount: Int): CountDownState? =
-    when {
-        this is CountDownState.Setup -> CountDownState.Running(initialCount)
-        this is CountDownState.Running
-                && this.current != 0 -> CountDownState.Running(this.current - 1)
-        this is CountDownState.Running
-                && this.current == 0 -> CountDownState.Finished
-        else -> null
-    }
-
-fun CountDownState.previous(initialCount: Int): CountDownState? =
-    when {
-        this is CountDownState.Finished -> CountDownState.Running(0)
-        this is CountDownState.Running
-                && this.current != initialCount -> CountDownState.Running(this.current + 1)
-        this is CountDownState.Running
-                && this.current == initialCount -> CountDownState.Setup
-        else -> null
-    }
 
 
 @ExperimentalAnimationApi
