@@ -19,13 +19,9 @@ import android.os.Bundle
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.Button
 import androidx.compose.material.ButtonDefaults
@@ -40,7 +36,6 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontStyle
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -108,7 +103,9 @@ fun CountDownSetup(onDone: (Int) -> Unit) {
             Text(text = "+", fontSize = 60.sp)
         }
         CountDownElement(state = CountDownState.Running(initialCount.value))
-        CountDownButton(onClick = { initialCount.value-- }) {
+        CountDownButton(onClick = {
+            initialCount.value = kotlin.math.max(0, initialCount.value - 1)
+        }) {
             Text(text = "-", fontSize = 60.sp)
         }
         CountDownButton(onClick = { onDone(initialCount.value) }) {
@@ -144,11 +141,7 @@ fun CountDown(state: CountDownState, initialCount: Int, onRestart: () -> Unit = 
                 }
             }
 
-            val restartAlpha =
-                animateFloatAsState(
-                    targetValue = if (state is CountDownState.Finished) 1f else 0f,
-                    animationSpec = tween(delayMillis = 1500)
-                ).value
+            val restartAlpha = animateRestartAlpha(state is CountDownState.Finished)
 
             Box(
                 Modifier

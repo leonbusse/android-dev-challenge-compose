@@ -18,9 +18,17 @@ val backgroundColors = listOf(
 @Composable
 fun animateBackgroundColor(state: Any): State<Color> {
     val targetBackgroundColor = remember { mutableStateOf(Color.White) }
+    val skippedFirst = remember { mutableStateOf(false) }
     LaunchedEffect(state) {
-        targetBackgroundColor.value =
-            backgroundColors[(Math.random() * backgroundColors.size).toInt()]
+        if (skippedFirst.value) {
+            var nextColor = targetBackgroundColor.value
+            while (nextColor == targetBackgroundColor.value) {
+                nextColor = backgroundColors[(Math.random() * backgroundColors.size).toInt()]
+            }
+            targetBackgroundColor.value = nextColor
+        } else {
+            skippedFirst.value = true
+        }
     }
     val backgroundColorRed by animateFloatAsState(targetValue = targetBackgroundColor.value.red)
     val backgroundColorGreen by animateFloatAsState(targetValue = targetBackgroundColor.value.green)
@@ -29,6 +37,13 @@ fun animateBackgroundColor(state: Any): State<Color> {
         Color(backgroundColorRed, backgroundColorGreen, backgroundColorBlue)
     }
 }
+
+@Composable
+fun animateRestartAlpha(visible: Boolean) =
+    animateFloatAsState(
+        targetValue = if (visible) 1f else 0f,
+        animationSpec = tween(delayMillis = 1500)
+    ).value
 
 @ExperimentalAnimationApi
 @Composable
